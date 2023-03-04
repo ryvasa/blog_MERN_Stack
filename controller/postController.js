@@ -10,6 +10,7 @@ export const addPost = async (req, res) => {
     });
     const newPost = new Post({ ...req.body, author: user });
     const savedPost = await newPost.save();
+
     res.status(200).json(savedPost);
   } catch (error) {
     console.log(error);
@@ -20,17 +21,45 @@ export const addPost = async (req, res) => {
 // Get All Post
 export const getAllPosts = async (req, res) => {
   try {
-    const posts = await Post.find();
+    let query = {};
+    const qCategory = req.query.category;
+    if (qCategory) {
+      query.categories = {
+        $in: [qCategory],
+      };
+    }
+    const posts = await Post.find(query);
     res.status(200).json(posts);
   } catch (error) {
     console.log(error);
     res.status(500).json(error);
   }
 };
+// export const getAllPostByCategory = async (req, res) => {
+//   try {
+//     try {
+//       let query = {};
+//       if (qCategory) {
+//         query.categories = {
+//           $in: [qCategory],
+//         };
+//       }
+//       const products = await Product.find(query)
+//       res.status(200).json(products);
+//     } catch (error) {
+//       res.status(500).json(error);
+//     }
+//   } catch (error) {
+//     res.status(500).json(error);
+//   }
+// };
 // Get Single Post
 export const getSinglePost = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
+    const post = await Post.findById(req.params.id).populate(
+      "author",
+      "username img"
+    );
     res.status(200).json(post);
   } catch (error) {
     console.log(error);
@@ -88,6 +117,70 @@ export const deletePost = async (req, res) => {
     } else {
       return res.status(403).json("Can not access");
     }
+  } catch (error) {
+    console.log(error);
+    res.status(500).json(error);
+  }
+};
+// get post by userid
+export const getAllPostsByUserId = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    const post = await Post.find({ author: user });
+    res.status(200).json(post);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json(error);
+  }
+};
+// get post by userid
+export const getPostsByUserId = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    const post = await Post.find({ author: user })
+      .sort({ createdAt: -1 })
+      .limit(3);
+    res.status(200).json(post);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json(error);
+  }
+};
+// Get 3 newest post
+export const getNewestPost = async (req, res) => {
+  try {
+    let query = {};
+    const qCategory = req.query.category;
+    if (qCategory) {
+      query.categories = {
+        $in: [qCategory],
+      };
+    }
+    const posts = await Post.find(query)
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .populate("author", "username img");
+    res.status(200).json(posts);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json(error);
+  }
+};
+// get 6 documen
+export const getNewest = async (req, res) => {
+  try {
+    let query = {};
+    const qCategory = req.query.category;
+    if (qCategory) {
+      query.categories = {
+        $in: [qCategory],
+      };
+    }
+    const posts = await Post.find(query)
+      .sort({ createdAt: -1 })
+      .skip(3)
+      .limit(6);
+    res.status(200).json(posts);
   } catch (error) {
     console.log(error);
     res.status(500).json(error);

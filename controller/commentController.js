@@ -25,8 +25,9 @@ export const addComment = async (req, res) => {
 // Get All Comment by post id
 export const getAllCommentsByPostId = async (req, res) => {
   try {
-    const post = await Post.findById(req.body.postId);
-    const comments = await Comment.find({ post: post });
+    const comments = await Comment.find({ post: req.params.id })
+      .sort({ createdAt: -1 })
+      .populate("author", "username img createdAt");
     res.status(200).json(comments);
   } catch (error) {
     console.log(error);

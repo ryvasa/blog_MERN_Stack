@@ -10,7 +10,7 @@ import { auth } from "../middleware/verifyUser.js";
 const router = express.Router();
 
 router.post("/comments", auth, addComment);
-router.get("/comments", auth, getAllCommentsByPostId);
+router.get("/comments/:id", getAllCommentsByPostId);
 router.put("/comments/:id", auth, updateComment);
 router.delete("/comments/:id", auth, deleteComment);
 

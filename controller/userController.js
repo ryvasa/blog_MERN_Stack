@@ -13,7 +13,10 @@ export const getAllUsers = async (req, res) => {
 // Get Single User
 export const getSingleUser = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(req.params.id, {
+      password: 0,
+      refresh_token: 0,
+    });
     res.status(200).json(user);
   } catch (error) {
     console.log(error);
