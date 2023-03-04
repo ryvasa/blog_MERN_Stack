@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
+import axios from "axios";
 const Register = () => {
   const navigate = useNavigate();
   const [inputs, setInputs] = useState({});
+  const [error, setError] = useState("");
 
   const handleClick = (e) => {
     e.preventDefault;
@@ -17,10 +18,10 @@ const Register = () => {
   const register = async (user) => {
     try {
       const response = await axios.post(`http://localhost:5000/register`, user);
-      console.log(response);
       navigate("/");
     } catch (error) {
       console.log(error);
+      setError(error.response.data);
     }
   };
   console.log(inputs);
@@ -29,7 +30,10 @@ const Register = () => {
       <div className="hero min-h-screen bg-base-200">
         <div className="hero-content flex-col lg:flex-row-reverse w-2/5">
           <div className="card flex-shrink-0 w-full  shadow-2xl bg-base-100">
-            <div className="card-body flex flex-wrap w-full">
+            <div className="card-body flex flex-wrap  w-full">
+              <div className="flex justify-center h-10">
+                {error && <span className="text-red-500">{error}</span>}
+              </div>
               <div className="form-control">
                 <label className="label">
                   <span className="label-text">Email</span>

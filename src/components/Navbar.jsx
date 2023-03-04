@@ -3,17 +3,18 @@ import { Disclosure, Menu, Transition } from "@headlessui/react";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import { Link, useNavigate } from "react-router-dom";
 import { FaPencilAlt } from "react-icons/fa";
-import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
 import { Logout, reset } from "../redux/authSlice";
 
 const navigation = [
-  { name: "Home", href: "/", current: false },
-  { name: "Gaming", href: "#", current: false },
-  { name: "Technology", href: "#", current: false },
-  { name: "Selebrity", href: "#", current: false },
-  { name: "Food", href: "#", current: false },
-  { name: "Sport", href: "#", current: false },
+  { name: "Home", value: "", current: false },
+  { name: "Gaming", value: "gaming", current: false },
+  { name: "Technology", value: "technology", current: false },
+  { name: "Selebrity", value: "selebrity", current: false },
+  { name: "Food", value: "food", current: false },
+  { name: "Sport", value: "sport", current: false },
+  { name: "Travelling", value: "travelling", current: false },
+  { name: "Otomotif", value: "otomotif", current: false },
 ];
 
 function classNames(...classes) {
@@ -57,7 +58,7 @@ const Navbar = () => {
                     {navigation.map((item) => (
                       <Link
                         key={item.name}
-                        to={item.href}
+                        to={item.value !== undefined ? `/${item.value}` : "/"}
                         className={classNames(
                           item.current
                             ? "bg-gray-900 text-white"
@@ -91,8 +92,11 @@ const Navbar = () => {
                         <Menu.Button className="flex rounded-full bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
                           <span className="sr-only">Open user menu</span>
                           <img
-                            className="h-8 w-8 rounded-full"
-                            src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+                            className="h-8 w-8 border-2 border-white object-cover rounded-full"
+                            src={
+                              user.img ||
+                              "https://crowd-literature.eu/wp-content/uploads/2015/01/no-avatar.gif"
+                            }
                             alt=""
                           />
                         </Menu.Button>
@@ -110,7 +114,7 @@ const Navbar = () => {
                           <Menu.Item>
                             {({ active }) => (
                               <Link
-                                to={"/profile"}
+                                to={`/profile/${user._id}`}
                                 className={classNames(
                                   active ? "bg-gray-100" : "",
                                   "block px-4 py-2 text-sm text-gray-700"

@@ -1,30 +1,28 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
-import { LoginUser, reset } from "../redux/authSlice";
+import axios from "axios";
 const Login = () => {
-  const [inputs, setInputs] = useState({});
-  const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user, isError, isSuccess, isLoading, message } = useSelector(
-    (state) => state.auth
-  );
+  const [inputs, setInputs] = useState({});
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (user || isSuccess) {
-      navigate("/");
-    }
-    dispatch(reset());
-  }, [user, isSuccess, dispatch, navigate]);
-
-  const Auth = (e) => {
-    e.preventDefault();
-    dispatch(LoginUser(inputs));
+  const handleClick = (e) => {
+    e.preventDefault;
+    register(inputs);
   };
   const handleChange = (e) => {
     setInputs((prev) => {
       return { ...prev, [e.target.name]: e.target.value };
     });
+  };
+  const register = async (user) => {
+    try {
+      const response = await axios.post(`http://localhost:5000/login`, user);
+      navigate("/");
+    } catch (error) {
+      console.log(error);
+      setError(error.response.data);
+    }
   };
   return (
     <>
@@ -32,6 +30,9 @@ const Login = () => {
         <div className="hero-content flex-col lg:flex-row-reverse w-2/5">
           <div className="card flex-shrink-0 w-full  shadow-2xl bg-base-100">
             <div className="card-body flex flex-wrap w-full">
+              <div className="flex justify-center h-5">
+                {error && <span className="text-red-500">{error}</span>}
+              </div>
               <div className="form-control">
                 <label className="label">
                   <span className="label-text">Email</span>
@@ -66,8 +67,12 @@ const Login = () => {
                   Have an account? Go to register.
                 </Link>
               </label>
-              <button onClick={Auth} type="submit" className="btn btn-sm">
-                {isLoading ? "Loading..." : "Login"}
+              <button
+                onClick={handleClick}
+                type="submit"
+                className="btn btn-sm"
+              >
+                Log In
               </button>
             </div>
           </div>

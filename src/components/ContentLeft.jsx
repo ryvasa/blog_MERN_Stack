@@ -1,139 +1,154 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { FaEdit, FaTrashAlt } from "react-icons/fa";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Comment from "./Comment";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+import { useSelector } from "react-redux";
+import axios from "axios";
+import jwt_decode from "jwt-decode";
 
-const ContentLeft = () => {
+const ContentLeft = ({ post }) => {
+  const [token, setToken] = useState("");
+  const [expire, setExpire] = useState("");
+  const navigate = useNavigate();
+  const user = useSelector((state) => state.auth.user);
+  const [id, setId] = useState("");
+  useEffect(() => {
+    if (user === null) {
+      return;
+    } else {
+      refreshToken();
+    }
+  }, []);
+
+  dayjs.extend(relativeTime);
+
+  const getText = (html) => {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    return doc.body.textContent;
+  };
+
+  const refreshToken = async () => {
+    try {
+      const response = await axios.get("http://localhost:5000/token");
+      setToken(response.data.accessToken);
+      const decoded = jwt_decode(response.data.accessToken);
+      setId(decoded._id);
+      setExpire(decoded.exp);
+    } catch (error) {
+      if (error.response) {
+        navigate("/");
+      }
+      console.log(error);
+    }
+  };
+  const axiosJWT = axios.create();
+
+  axiosJWT.interceptors.request.use(
+    async (config) => {
+      const currentDate = new Date();
+      if (expire * 1000 < currentDate.getTime()) {
+        const response = await axios.get("http://localhost:5000/token");
+        config.headers.Authorization = `Bearer ${response.data.accessToken}`;
+        setToken(response.data.accessToken);
+        const decoded = jwt_decode(response.data.accessToken);
+        setId(decoded._id);
+        setExpire(decoded.exp);
+      }
+
+      return config;
+    },
+    (error) => {
+      console.log(error);
+      return Promise.reject(error);
+    }
+  );
+  const handleDelete = async () => {
+    try {
+      const response = await axiosJWT.delete(
+        `http://localhost:5000/posts/${post._id}`,
+
+        {
+          data: { userId: user._id },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      navigate("/");
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  console.log(user);
   return (
     <>
       <div className="flex-[3]">
-        <h1 className="text-5xl pb-1 font-semibold">title</h1>
-        <div className="flex justify-center ">
-          <img
-            src="https://assets.thehansindia.com/h-upload/2021/06/26/1084530-t.webp"
-            alt=""
-            className="rounded-lg h-96 w-full object-cover"
-          />
-        </div>
-        <div className="flex justify-between m-5">
-          <div className="flex items-center">
-            <img
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-              alt=""
-              className="w-10 h-10 object-cover mr-4 rounded-full"
-            />
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold">Nama author</span>
-              <span className="text-sm font-normal">Post in : 3 day ago</span>
+        {post && post.img && post.author && (
+          <>
+            <h1 className="text-5xl pb-1 font-semibold">{post.title}</h1>
+            <div className="flex justify-center ">
+              <img
+                src={
+                  post.img ||
+                  "https://www.shutterstock.com/image-vector/default-ui-image-placeholder-wireframes-260nw-1037719192.jpg"
+                }
+                alt=""
+                className="rounded-lg h-96 w-full object-cover"
+              />
             </div>
-          </div>
-          <div className="flex gap-3">
-            <div className="tooltip" data-tip="Edit">
-              <Link
-                to={"/write/:id"}
-                className="btn btn-sm btn-circle flex items-center justify-center"
-              >
-                <FaEdit />
-              </Link>
+            <div className="flex justify-between m-5">
+              <div className="flex items-center">
+                <img
+                  src={
+                    post && post.author.img
+                      ? post.author.img
+                      : "https://crowd-literature.eu/wp-content/uploads/2015/01/no-avatar.gif"
+                  }
+                  alt=""
+                  className="w-10 h-10 object-cover mr-4 rounded-full"
+                />
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold">
+                    {post && post.author ? post.author.username : " "}
+                  </span>
+                  <span className="text-sm font-normal">
+                    Post in : {dayjs(post.createdAt).fromNow()}
+                  </span>
+                </div>
+              </div>
+
+              {user && user._id === post.author._id ? (
+                <div className="flex gap-3">
+                  <div className="tooltip" data-tip="Edit">
+                    <Link
+                      to={{
+                        pathname: `/write/${post._id}`,
+                        state: { post },
+                      }}
+                      className="btn btn-sm btn-circle flex items-center justify-center"
+                    >
+                      <FaEdit />
+                    </Link>
+                  </div>
+                  <div className="tooltip" data-tip="Delete">
+                    <button
+                      onClick={handleDelete}
+                      className="btn btn-sm bg-red-500 border-red-500 hover:border-red-500  order hover:bg-red-400 btn-circle text-white"
+                    >
+                      <FaTrashAlt />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <span></span>
+              )}
             </div>
-            <div className="tooltip" data-tip="Delete">
-              <button className="btn btn-sm bg-red-500 border-red-500 border hover:bg-red-400 btn-circle text-white">
-                <FaTrashAlt />
-              </button>
-            </div>
-          </div>
-        </div>
-        <p className="font-light">
-          Lorem ipsum dolor sit, amet consectetur adipisicing elit. Quaerat,
-          iure. Ex error optio sed nostrum praesentium quisquam aspernatur alias
-          eos reiciendis itaque, dolorem non facilis, animi impedit at minima
-          nam quasi vitae ipsum soluta nemo dolor inventore distinctio eum.
-          Reprehenderit maxime ducimus et culpa cupiditate quo. Eius unde
-          facilis minus quis alias eveniet expedita odio natus quisquam
-          reiciendis tempore asperiores maiores esse deleniti ab cumque quo
-          voluptates cupiditate, fuga nam ratione dolores dolorum deserunt
-          nesciunt. Exercitationem nostrum culpa blanditiis illo ducimus modi
-          nam veritatis omnis labore pariatur vero odit quibusdam, velit
-          incidunt ipsum dolorem maxime at tempore fugit ratione repellendus
-          porro nesciunt dolor. Eligendi quia illum dolores voluptate,
-          recusandae laudantium nisi in voluptatum aperiam corrupti laboriosam
-          magnam maxime sequi iusto dolore labore aspernatur tempora itaque
-          maiores obcaecati natus, eaque dolor accusantium. Inventore sequi nemo
-          neque maxime blanditiis beatae ut vero molestiae atque labore
-          doloribus ducimus non enim rem porro nisi quis deserunt, officiis
-          laborum esse. Illum ducimus error dicta labore excepturi ab architecto
-          molestiae commodi impedit? Expedita eos ut quia voluptatum doloribus,
-          soluta eum accusamus eveniet dolor est iste amet iure nostrum cumque
-          dolorum minima nihil impedit veritatis saepe commodi ducimus
-          consequuntur ullam doloremque omnis. Repellat ullam laboriosam
-          temporibus rem harum excepturi nulla, inventore fugit ipsa sed
-          doloremque quas neque unde suscipit debitis esse. Totam ipsa deleniti
-          quaerat harum aliquid, fugit quod ut magnam sequi adipisci, animi eos
-          nulla corrupti assumenda reiciendis quia provident sit ipsum
-          consequuntur. Itaque aliquid libero distinctio sed, fugiat eum
-          expedita at perspiciatis cupiditate. Reiciendis et expedita
-          laboriosam, veniam doloremque quae amet accusantium nisi ipsum quia!
-          Reprehenderit perferendis architecto minus magnam pariatur possimus
-          eaque reiciendis velit fugiat dignissimos quibusdam quasi nemo maiores
-          nobis itaque ipsa impedit maxime, rerum illo recusandae. Dicta
-          architecto voluptatum delectus itaque saepe dolores omnis fuga cum
-          tenetur est recusandae, neque, ut incidunt ipsam. Aliquid tempora
-          doloremque sed suscipit fugit laborum animi ullam dolorem repellat eum
-          dolores, molestiae harum, magnam reprehenderit nobis nam saepe
-          deserunt doloribus ea tempore perferendis? Aut, quos fugiat? Ea rem
-          aspernatur amet aliquid ex perferendis quos? Quas iste magni nostrum
-          maiores alias id culpa voluptatem illo placeat unde. Obcaecati aperiam
-          similique explicabo. Assumenda tenetur eum explicabo dolor quo debitis
-          quae, eligendi aliquid accusamus ipsa sit hic odit quas sunt quia
-          minima? Modi sapiente eligendi ab consequatur eius voluptate dicta
-          omnis, eos rem delectus aspernatur debitis tenetur exercitationem a
-          qui itaque atque sint, similique fugit? Expedita voluptas voluptate
-          ut, doloribus perferendis iusto cum odit eligendi aliquam impedit
-          maxime facere dolor accusantium sit deleniti harum autem magni dolorum
-          architecto. Porro repudiandae sapiente cum. Consectetur totam, dicta
-          debitis saepe delectus error, earum veritatis blanditiis numquam
-          possimus accusantium, necessitatibus voluptatem laudantium ut modi
-          excepturi eveniet enim hic. Iusto molestiae impedit officia veritatis
-          iste ex nisi tempore inventore, cupiditate expedita neque autem a
-          dolorem repellat quidem ullam eos consequuntur quo! Porro nemo
-          doloribus nihil, assumenda rerum quia similique quod sequi id mollitia
-          eos placeat quae! Facere odio, quod sed repudiandae optio nemo, unde
-          quo libero earum assumenda dolorum provident, quaerat nulla expedita
-          ab voluptas non. Velit voluptatum ut cum mollitia delectus non rem,
-          ipsam aspernatur consequatur tempore impedit iusto repellendus
-          voluptates nostrum similique ea iste cupiditate veritatis eaque libero
-          earum iure et placeat nihil. Veniam, dolores repudiandae? Quas eos
-          accusamus nemo error ratione magni laboriosam sunt, sequi, tempore
-          quod et. Quas voluptate error minima laborum tempore ad doloribus
-          vitae, dignissimos praesentium reprehenderit inventore quidem aliquid
-          est unde enim eum eveniet id perspiciatis tempora facilis adipisci
-          perferendis odio minus dolor. Molestiae repudiandae dicta voluptas,
-          praesentium maiores minus cum facere officiis vel facilis commodi quo
-          id natus totam eius officia distinctio deserunt? Ut cum, ipsam in sit
-          perferendis praesentium atque corporis commodi, id explicabo laborum
-          ex laboriosam dolores ipsa, debitis libero fugiat cumque numquam et
-          sed quia exercitationem. Excepturi repudiandae praesentium laudantium
-          id aspernatur alias nemo debitis delectus molestias quasi optio beatae
-          voluptate vitae a maxime sit non fugiat quis quod repellendus, neque
-          distinctio exercitationem ab? Sapiente repellat qui deleniti tenetur
-          accusantium cum magnam architecto dicta saepe est soluta quasi
-          commodi, eaque vero amet ut perspiciatis nam porro. Fugit delectus
-          explicabo asperiores magnam? Iure quidem aliquam eum quae molestiae
-          inventore eaque fuga similique ipsam ipsum nam illo obcaecati sapiente
-          quos minima impedit, animi quo odit? Ipsam repellendus harum corrupti
-          ipsa, repudiandae deleniti delectus aperiam excepturi iste totam
-          blanditiis assumenda molestiae mollitia maxime necessitatibus, autem
-          adipisci perspiciatis quae fuga quis sed aut iure a neque? Eveniet,
-          ullam at impedit minima excepturi consequuntur? Esse, rem. Voluptatem
-          soluta earum asperiores ab voluptatibus mollitia, fugiat hic quaerat
-          accusantium odit quia tenetur, accusamus facere cupiditate dolor eaque
-          alias ratione illo dolorum vero. Quod repudiandae nobis consequatur
-          corrupti iusto illum qui quidem quae ea numquam, rerum, ullam minima
-          praesentium, a veritatis itaque ad saepe unde. Laudantium dolorem
-          neque eum? Maiores corrupti dignissimos nemo sint aspernatur, modi
-          doloremque rem repellat consequuntur et commodi?
-        </p>
-        <Comment />
+            <p className="font-light">{getText(post.content)}</p>
+            <Comment />
+          </>
+        )}
       </div>
     </>
   );

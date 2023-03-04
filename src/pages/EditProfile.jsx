@@ -1,7 +1,152 @@
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { FaFileImage } from "react-icons/fa";
+import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+import { useNavigate, useParams } from "react-router-dom";
+import jwt_decode from "jwt-decode";
+
+import {
+  getStorage,
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+} from "firebase/storage";
+import app from "../firebase";
+import axios from "axios";
 const EditProfile = () => {
+  const { id } = useParams();
+  const user = useSelector((state) => state.auth.user);
+  const [preview, setPreview] = useState("");
+  const [file, setFile] = useState(null);
+  const [token, setToken] = useState("");
+  const [expire, setExpire] = useState("");
+  const [inputs, setInputs] = useState({});
+  const navigate = useNavigate();
+  useEffect(() => {
+    refreshToken();
+    if (user === null) {
+      navigate("/");
+    }
+  }, []);
+
+  const loadImage = (e) => {
+    const image = e.target.files[0];
+    setFile(image);
+    setPreview(URL.createObjectURL(image));
+  };
+  const handleChange = (e) => {
+    setInputs((prev) => {
+      return { ...prev, [e.target.name]: e.target.value };
+    });
+  };
+  const refreshToken = async () => {
+    try {
+      const response = await axios.get("http://localhost:5000/token");
+      setToken(response.data.accessToken);
+      const decoded = jwt_decode(response.data.accessToken);
+      setExpire(decoded.exp);
+    } catch (error) {
+      if (error.response) {
+        navigate("/");
+      }
+      console.log(error);
+    }
+  };
+  const axiosJWT = axios.create();
+
+  axiosJWT.interceptors.request.use(
+    async (config) => {
+      const currentDate = new Date();
+      if (expire * 1000 < currentDate.getTime()) {
+        const response = await axios.get("http://localhost:5000/token");
+        config.headers.Authorization = `Bearer ${response.data.accessToken}`;
+        setToken(response.data.accessToken);
+        const decoded = jwt_decode(response.data.accessToken);
+        setUserId(decoded.id);
+        setExpire(decoded.exp);
+      }
+
+      return config;
+    },
+    (error) => {
+      console.log(error);
+      return Promise.reject(error);
+    }
+  );
+  const handleClick = async (e) => {
+    e.preventDefault();
+    if (file === null) {
+      const user = { ...inputs };
+      try {
+        const response = await axiosJWT.put(
+          `http://localhost:5000/users/${id}`,
+          user,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        console.log(response);
+        navigate(`/profile/${id}`);
+      } catch (error) {
+        console.log(error);
+      }
+    } else {
+      const fileName = new Date().getTime() + file.name;
+      const storage = getStorage(app);
+      const storageRef = ref(storage, fileName);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      // Register three observers:
+      // 1. 'state_changed' observer, called any time the state changes
+      // 2. Error observer, called on failure
+      // 3. Completion observer, called on successful completion
+      uploadTask.on(
+        "state_changed",
+        (snapshot) => {
+          // Observe state change events such as progress, pause, and resume
+          // Get task progress, including the number of bytes uploaded and the total number of bytes to be uploaded
+          const progress =
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          console.log("Upload is " + progress + "% done");
+          switch (snapshot.state) {
+            case "paused":
+              console.log("Upload is paused");
+              break;
+            case "running":
+              console.log("Upload is running");
+              break;
+            default:
+          }
+        },
+        (error) => {
+          // Handle unsuccessful uploads
+        },
+        async () => {
+          // Handle successful uploads on complete
+          // For instance, get the download URL: https://firebasestorage.googleapis.com/...
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          const user = { ...inputs, img: downloadURL };
+          try {
+            const response = await axiosJWT.put(
+              `http://localhost:5000/users/${id}`,
+              user,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            );
+            navigate(`/profile/${id}`);
+          } catch (error) {
+            console.log(error);
+          }
+        }
+      );
+    }
+  };
   return (
     <>
       <Navbar />
@@ -10,29 +155,36 @@ const EditProfile = () => {
           <div className="flex  mx-10 justify-center">
             <div className="flex-1 flex-wrap mx-3">
               <div className="flex justify-center">
-                <img
-                  src={
-                    "https://crowd-literature.eu/wp-content/uploads/2015/01/no-avatar.gif"
-                  }
-                  alt=""
-                  className="object-cover border shadow-lg rounded-full w-72 h-72 mt-20 mx-3"
-                />
+                {preview ? (
+                  <img
+                    src={preview}
+                    alt="preview image"
+                    className="object-cover border shadow-lg rounded-full w-72 h-72 mt-20 mx-3"
+                  />
+                ) : (
+                  <img
+                    src={
+                      user && user.img
+                        ? user.img
+                        : "https://crowd-literature.eu/wp-content/uploads/2015/01/no-avatar.gif"
+                    }
+                    alt=""
+                    className="object-cover border shadow-lg rounded-full w-72 h-72 mt-20 mx-3"
+                  />
+                )}
               </div>
               <div className="flex py-3 max-w-full justify-center">
                 <label htmlFor="file" className=" btn btn-sm shadow-md ">
                   <FaFileImage /> Avatar
                 </label>
                 <input
+                  placeholder={user.img}
                   id="file"
                   name="file"
-                  //   onChange={(e) => setFile(e.target.files[0])}
+                  onChange={loadImage}
                   type="file"
                   style={{ display: "none" }}
                 />
-              </div>
-
-              <div className="flex justify-center py-5">
-                <span>ID : userid</span>
               </div>
             </div>
             <div className="isolate flex-1 bg-white ">
@@ -47,7 +199,8 @@ const EditProfile = () => {
                     </label>
                     <div className="mt-2.5">
                       <input
-                        placeholder="username"
+                        onChange={handleChange}
+                        placeholder={user.username}
                         type="text"
                         name="username"
                         id="username"
@@ -66,7 +219,8 @@ const EditProfile = () => {
                     </label>
                     <div className="mt-2.5">
                       <input
-                        placeholder="youremail"
+                        onChange={handleChange}
+                        placeholder={user.email}
                         type="email"
                         name="email"
                         id="email"
@@ -89,6 +243,7 @@ const EditProfile = () => {
                         </label>
                       </div>
                       <input
+                        onChange={handleChange}
                         type="password"
                         name="currentPassword"
                         id="currentPassword"
@@ -111,6 +266,7 @@ const EditProfile = () => {
                         </label>
                       </div>
                       <input
+                        onChange={handleChange}
                         type="password"
                         name="newPassword"
                         id="newPassword"
@@ -133,6 +289,7 @@ const EditProfile = () => {
                         </label>
                       </div>
                       <input
+                        onChange={handleChange}
                         type="password"
                         name="confirmPassword"
                         id="confirmPassword"
@@ -143,7 +300,13 @@ const EditProfile = () => {
                   </div>
                 </div>
                 <div className="mt-10">
-                  <button className="btn btn-sm">Update</button>
+                  <button
+                    onClick={handleClick}
+                    type="submit"
+                    className="btn btn-sm"
+                  >
+                    Update
+                  </button>
                 </div>
               </form>
             </div>
